@@ -75,6 +75,13 @@ while quit() is 0
 end
 ```
 
+## Memory
+
+The runtime has a small **conservative mark-sweep garbage collector**, so games
+can grow lists/maps freely (a Snake body, particles, etc.) and memory stays
+bounded — no manual frees, no leaks. Numbers are integers (no floats), which is
+plenty for arcade games.
+
 ## Requirements
 
 `python3` (for `vc` at build time), a C compiler, and **SDL2**

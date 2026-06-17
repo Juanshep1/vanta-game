@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <setjmp.h>
+#include <stdint.h>
+#include <mach-o/getsect.h>
+#include <mach-o/dyld.h>
 typedef unsigned int u32; typedef unsigned char u8;
 typedef __builtin_va_list va_list;
 #define va_start __builtin_va_start
@@ -16,7 +20,43 @@ static int scmp(const char* a,const char* b){ while(*a&&*a==*b){a++;b++;} return
 static char* scpy(char* d,const char* s){ char* r=d; while((*d++=*s++)){} return r; }
 static char* scat(char* d,const char* s){ char* r=d; while(*d)d++; while((*d++=*s++)){} return r; }
 static char* sstr(const char* h,const char* n){ unsigned long nl=slen(n); if(!nl)return (char*)h; for(;*h;h++){ unsigned long i=0; while(i<nl&&h[i]==n[i])i++; if(i==nl)return (char*)h; } return 0; }
-static void* galloc(long n){ return malloc(n>0?(size_t)n:1); }  /* real heap: game state can grow safely */
+/* ---- conservative mark-sweep GC: game state never corrupts AND memory stays bounded ---- */
+typedef struct Block { struct Block* next; size_t size; int mark; } Block;
+static Block* g_head=0; static size_t g_live=0, g_next_gc=4u*1024*1024;
+static void* g_stack_bottom=0; static int g_ingc=0;
+static void** g_arr=0; static size_t g_n=0;
+static Block** g_work=0; static size_t g_wcap=0, g_wn=0;
+static int cmp_ptr(const void* a,const void* b){ void* x=*(void* const*)a,*y=*(void* const*)b; return (x<y)?-1:((x>y)?1:0); }
+static int is_block(void* p){ size_t lo=0,hi=g_n; while(lo<hi){ size_t mid=(lo+hi)>>1; if(g_arr[mid]==p)return 1; if(g_arr[mid]<p)lo=mid+1; else hi=mid; } return 0; }
+static void mark_push(Block* b){ if(b->mark)return; b->mark=1; if(g_wn>=g_wcap){ g_wcap=g_wcap?g_wcap*2:4096; g_work=(Block**)realloc(g_work,g_wcap*sizeof(Block*)); } g_work[g_wn++]=b; }
+static void mark_range(void* lo,void* hi){ char* w=(char*)lo; for(; w+sizeof(void*)<=(char*)hi; w+=sizeof(void*)){ void* p=*(void**)w; if(is_block(p)) mark_push((Block*)p-1); } }
+static void mark_segment(const char* seg,const char* sect){
+  unsigned long sz=0; uint8_t* p=getsectiondata((const struct mach_header_64*)_dyld_get_image_header(0),seg,sect,&sz);
+  if(p&&sz) mark_range(p,p+sz);   /* runtime, slide-adjusted address of the globals */
+}
+static void gc_run(void){
+  size_t n=0; for(Block* b=g_head;b;b=b->next){ b->mark=0; n++; }
+  g_arr=(void**)malloc((n?n:1)*sizeof(void*)); g_n=0;
+  for(Block* b=g_head;b;b=b->next) g_arr[g_n++]=(void*)(b+1);
+  qsort(g_arr,g_n,sizeof(void*),cmp_ptr);
+  g_wn=0;
+  jmp_buf jb; setjmp(jb); mark_range(&jb,(char*)&jb+sizeof(jb));   /* spilled registers */
+  void* tmp; void* top=&tmp;
+  if(top<g_stack_bottom) mark_range(top,g_stack_bottom); else mark_range(g_stack_bottom,top);  /* the C stack */
+  mark_segment("__DATA","__data"); mark_segment("__DATA","__bss"); mark_segment("__DATA","__common");  /* globals = game state */
+  while(g_wn){ Block* b=g_work[--g_wn]; void** w=(void**)(b+1); size_t cnt=b->size/sizeof(void*); for(size_t i=0;i<cnt;i++){ if(is_block(w[i])) mark_push((Block*)w[i]-1); } }
+  Block** pp=&g_head; g_live=0;
+  while(*pp){ Block* b=*pp; if(b->mark){ g_live+=b->size+sizeof(Block); pp=&b->next; } else { *pp=b->next; free(b); } }
+  free(g_arr); g_arr=0; g_n=0;
+  g_next_gc=g_live*2+2u*1024*1024;
+}
+static void* galloc(long n){
+  if(!g_ingc && g_stack_bottom && g_live>g_next_gc){ g_ingc=1; gc_run(); g_ingc=0; }
+  size_t sz=(size_t)(n>0?n:1);
+  Block* b=(Block*)malloc(sizeof(Block)+sz);
+  b->size=sz; b->mark=0; b->next=g_head; g_head=b; g_live+=sz+sizeof(Block);
+  return (void*)(b+1);
+}
 static char* numstr(long v){ char t[32]; int i=0,neg=v<0; unsigned long u=neg?(unsigned long)(-v):(unsigned long)v; if(!u)t[i++]='0'; while(u){t[i++]=(char)('0'+u%10);u/=10;} char* b=galloc(i+neg+1); int j=0; if(neg)b[j++]='-'; while(i)b[j++]=t[--i]; b[j]=0; return b; }
 
 enum { TN,TS,TB,TL,TM,TX };
@@ -146,6 +186,7 @@ static Value SAY(Value v){ printf("%s\n", tostr(v)); fflush(stdout); return NIL(
 
 extern void kmain(void);
 int main(int argc, char** argv){
+  g_stack_bottom=(void*)&argc;   /* the bottom of the C stack, for the GC's root scan */
   if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)!=0){ fprintf(stderr,"SDL init failed: %s\n",SDL_GetError()); return 1; }
   g_win=SDL_CreateWindow("Vanta Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SW, SH, SDL_WINDOW_SHOWN);
   g_ren=SDL_CreateRenderer(g_win,-1,SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
