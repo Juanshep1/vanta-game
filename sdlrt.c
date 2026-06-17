@@ -173,6 +173,16 @@ Value v_random(Value n){ long m=n.n>0?n.n:1; return NUM((long)(xrnd()%(unsigned 
 Value v_random_range(Value a,Value b){ long lo=a.n,hi=b.n; if(hi<lo){long t=lo;lo=hi;hi=t;} return NUM(lo+(long)(xrnd()%(unsigned long)(hi-lo+1))); }
 Value v_line(Value vx0,Value vy0,Value vx1,Value vy1,Value vc){ int x0=vx0.n,y0=vy0.n,x1=vx1.n,y1=vy1.n; u32 c=(u32)vc.n; int dx=x1-x0,dy=y1-y0; int sx=dx<0?-1:1,sy=dy<0?-1:1; dx=dx<0?-dx:dx; dy=dy<0?-dy:dy; int err=(dx>dy?dx:-dy)/2,e2; for(;;){ putpx(x0,y0,c); if(x0==x1&&y0==y1)break; e2=err; if(e2>-dx){err-=dy;x0+=sx;} if(e2<dy){err+=dx;y0+=sy;} } return NIL(); }
 Value v_rect(Value vx,Value vy,Value vw,Value vh,Value vc){ int x=vx.n,y=vy.n,w=vw.n,h=vh.n; u32 c=(u32)vc.n; for(int i=0;i<w;i++){putpx(x+i,y,c);putpx(x+i,y+h-1,c);} for(int j=0;j<h;j++){putpx(x,y+j,c);putpx(x+w-1,y+j,c);} return NIL(); }
+static int pal_lookup(Value pal,char ch,u32* out){ if(pal.t!=TM)return 0; for(long i=0;i<pal.m->len;i++){ if(pal.m->keys[i][0]==ch&&pal.m->keys[i][1]==0){ *out=(u32)pal.m->vals[i].n; return 1; } } return 0; }
+/* sprite(x,y, rows, scale, palette): rows = list of strings, each char -> a colour in the palette map; ' ' and '.' are transparent */
+Value v_sprite(Value vx,Value vy,Value rows,Value vscale,Value pal){ int x=vx.n,y=vy.n,sc=vscale.n; if(sc<1)sc=1; if(rows.t!=TL)return NIL();
+  for(long j=0;j<rows.l->len;j++){ Value rv=rows.l->items[j]; if(rv.t!=TS)continue; const char* s=rv.s; for(int i=0;s[i];i++){ char ch=s[i]; if(ch==' '||ch=='.')continue; u32 col; if(pal_lookup(pal,ch,&col)) fillrect(x+i*sc,y+j*sc,sc,sc,col); } }
+  return NIL(); }
+/* window(w,h): set the window size (call once at the start of your game) */
+Value v_window(Value vw,Value vh){ int w=vw.n,h=vh.n; if(w<120)w=120; if(h<120)h=120; SW=w; SH=h;
+  SDL_SetWindowSize(g_win,w,h); SDL_SetWindowPosition(g_win,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);
+  if(g_tex)SDL_DestroyTexture(g_tex); g_tex=SDL_CreateTexture(g_ren,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,SW,SH); SDL_SetTextureBlendMode(g_tex,SDL_BLENDMODE_NONE);
+  BACK=(u32*)galloc((long)SW*SH*4); WALL=(u32*)galloc((long)SW*SH*4); for(u32 i=0;i<SW*SH;i++){BACK[i]=0;WALL[i]=0;} return NIL(); }
 /* ---- sound: a tiny square-wave synth running on the SDL audio thread ---- */
 #define MAXTONE 8
 static struct { int freq,left,phase; } g_tones[MAXTONE];

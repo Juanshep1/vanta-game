@@ -13,9 +13,11 @@ that Vanta is a real, self-hosting, native language.
 
 | | |
 | --- | --- |
+| **`tetris`** | full Tetris — 7 pieces, rotation, line clears, levels. ←/→ move, ↑ rotate, ↓ soft-drop, Space hard-drop. |
 | **`snake`** | classic Snake — grow, eat, don't crash. Arrow keys, Space to restart. |
 | **`pong`** | Pong vs the computer. Up/Down arrows. |
 | **`bounce`** | a Breakout-style paddle bouncer. ←/→ arrows. |
+| **`sprites`** | a demo of pixel-art sprites defined as plain Vanta strings. |
 
 Build any of them with `./build.sh <name>` and run `./<name>`.
 
@@ -46,6 +48,8 @@ SDL instead of a raw framebuffer. So the *same* Vanta graphics code can target
 | `rgrad` `rblend` | gradient / translucent shapes |
 | `text_at` `text_big` `text_huge` `(x,y,s,c)` | text |
 | `line(x0,y0,x1,y1,c)` `rect(x,y,w,h,c)` | line / outlined rectangle |
+| `sprite(x,y, rows, scale, palette)` | pixel art — `rows` = list of strings, each char → a colour in the `palette` map (`' '`/`'.'` = transparent) |
+| `window(w, h)` | set the window size (call once at the start) |
 | `poll()` | pump input each frame |
 | `held(name)` | is a key held now (`left`/`right`/`up`/`down`/`space`/`escape`/`a`..`z`) |
 | `pressed(name)` | was a key *just* pressed this frame (edge) |

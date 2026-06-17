@@ -1,0 +1,27 @@
+# pixel-art sprites drawn from plain Vanta strings (palette: char -> colour)
+title("Vanta Sprites")
+window(540, 320)
+let pal be {"r": rgb(235, 70, 80), "w": rgb(245, 245, 250), "k": rgb(24, 24, 36), "y": rgb(245, 210, 80)}
+let heart be ["  rr rr  ", " rrrrrrr ", "rrrrrrrrr", "rrrrrrrrr", " rrrrrrr ", "  rrrrr  ", "   rrr   ", "    r    "]
+let ghost be [" wwwww ", "wwwwwww", "wkwwkww", "wwwwwww", "wwwwwww", "w w w w"]
+let coin be [" yyy ", "yywwy", "yywwy", "yywwy", " yyy "]
+background(rgb(14, 16, 30))
+let t be 0
+while quit() is 0
+    poll()
+    clear()
+    sprite(50, 80, heart, 14, pal)
+    sprite(230, 90, ghost, 18, pal)
+    let bob be t
+    while bob is at least 40
+        change bob to bob - 40
+    end
+    if bob is over 20
+        change bob to 40 - bob
+    end
+    sprite(420, 90 + bob - 10, coin, 18, pal)
+    text_at(50, 270, "pixel-art sprites, defined as plain Vanta strings", rgb(150, 160, 190))
+    change t to t + 1
+    present()
+    delay(16)
+end

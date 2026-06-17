@@ -1,0 +1,261 @@
+# Tetris - in plain Vanta, compiled native (vc + SDL). Arrows move/rotate,
+# Down soft-drops, Space hard-drops. Space restarts after a game over.
+title("Vanta Tetris")
+window(560, 640)
+let W be screen_w()
+let H be screen_h()
+let cols be 10
+let rows be 20
+let cell be 26
+let ox be 40
+let oy be 44
+let panel be 330
+
+let bg be rgb(10, 13, 24)
+let grid be rgb(22, 26, 44)
+let white be rgb(232, 238, 250)
+let dim be rgb(130, 144, 176)
+let colors be []
+add rgb(0, 0, 0) to colors
+add rgb(80, 220, 250) to colors
+add rgb(245, 215, 80) to colors
+add rgb(190, 110, 240) to colors
+add rgb(110, 230, 140) to colors
+add rgb(240, 100, 110) to colors
+add rgb(90, 140, 250) to colors
+add rgb(245, 160, 70) to colors
+
+let pieces be []
+add {"color": 1, "cells": [[-1, 0], [0, 0], [1, 0], [2, 0]]} to pieces
+add {"color": 2, "cells": [[0, 0], [1, 0], [0, 1], [1, 1]]} to pieces
+add {"color": 3, "cells": [[0, 0], [-1, 0], [1, 0], [0, 1]]} to pieces
+add {"color": 4, "cells": [[0, 0], [1, 0], [-1, 1], [0, 1]]} to pieces
+add {"color": 5, "cells": [[-1, 0], [0, 0], [0, 1], [1, 1]]} to pieces
+add {"color": 6, "cells": [[-1, 0], [0, 0], [1, 0], [1, 1]]} to pieces
+add {"color": 7, "cells": [[-1, 0], [0, 0], [1, 0], [-1, 1]]} to pieces
+
+to empty_row()
+    let r be []
+    let j be 0
+    while j is under cols
+        add 0 to r
+        change j to j + 1
+    end
+    give back r
+end
+
+to rot_cell(cx, cy, r)
+    let x be cx
+    let y be cy
+    let k be 0
+    while k is under r
+        let nx be 0 - y
+        let ny be x
+        change x to nx
+        change y to ny
+        change k to k + 1
+    end
+    give back [x, y]
+end
+
+to piece_cells(p, ax, ay, r)
+    let out be []
+    for each cell in p["cells"]
+        let rc be rot_cell(cell[0], cell[1], r)
+        add [ax + rc[0], ay + rc[1]] to out
+    end
+    give back out
+end
+
+to valid(cells)
+    for each c in cells
+        let cx be c[0]
+        let cy be c[1]
+        if cx is under 0 or cx is at least cols or cy is at least rows
+            give back 0
+        end
+        if cy is at least 0 and board[cy][cx] is not 0
+            give back 0
+        end
+    end
+    give back 1
+end
+
+to lock_piece()
+    let cells be piece_cells(cur, px, py, rot)
+    for each c in cells
+        if c[1] is at least 0
+            change board[c[1]][c[0]] to cur["color"]
+        end
+    end
+end
+
+to clear_lines()
+    let kept be []
+    let cleared be 0
+    for each row in board
+        let full be 1
+        for each v in row
+            if v is 0
+                change full to 0
+            end
+        end
+        if full is 1
+            change cleared to cleared + 1
+        otherwise
+            add row to kept
+        end
+    end
+    let result be []
+    let k be 0
+    while k is under cleared
+        add empty_row() to result
+        change k to k + 1
+    end
+    for each row in kept
+        add row to result
+    end
+    change board to result
+    give back cleared
+end
+
+to spawn()
+    change cur to pieces[random(7)]
+    change px to 4
+    change py to 1
+    change rot to 0
+    let cells be piece_cells(cur, px, py, rot)
+    if valid(cells) is 0
+        change alive to 0
+        sound(140, 320)
+    end
+end
+
+to settle()
+    lock_piece()
+    let n be clear_lines()
+    if n is over 0
+        change lines to lines + n
+        change score to score + n * 100
+        change level to lines / 10
+        sound(880, 70)
+    end
+    spawn()
+end
+
+let board be []
+let bi be 0
+while bi is under rows
+    add empty_row() to board
+    change bi to bi + 1
+end
+let cur be pieces[0]
+let px be 4
+let py be 1
+let rot be 0
+let alive be 1
+let score be 0
+let lines be 0
+let level be 0
+let fall be 0
+spawn()
+
+background(bg)
+
+while quit() is 0
+    poll()
+    if alive is 1
+        if pressed("left") is 1 and valid(piece_cells(cur, px - 1, py, rot)) is 1
+            change px to px - 1
+        end
+        if pressed("right") is 1 and valid(piece_cells(cur, px + 1, py, rot)) is 1
+            change px to px + 1
+        end
+        if pressed("up") is 1
+            let nr be rot + 1
+            if nr is at least 4
+                change nr to 0
+            end
+            if valid(piece_cells(cur, px, py, nr)) is 1
+                change rot to nr
+                sound(440, 25)
+            end
+        end
+        if pressed("space") is 1
+            let drop be 1
+            while drop is 1
+                if valid(piece_cells(cur, px, py + 1, rot)) is 1
+                    change py to py + 1
+                otherwise
+                    change drop to 0
+                end
+            end
+            settle()
+        end
+        change fall to fall + 1
+        let gap be 28 - level * 3
+        if gap is under 4
+            change gap to 4
+        end
+        if held("down") is 1
+            change gap to 3
+        end
+        if fall is at least gap
+            change fall to 0
+            if valid(piece_cells(cur, px, py + 1, rot)) is 1
+                change py to py + 1
+            otherwise
+                settle()
+            end
+        end
+    otherwise
+        if pressed("space") is 1
+            change board to []
+            let ri be 0
+            while ri is under rows
+                add empty_row() to board
+                change ri to ri + 1
+            end
+            change score to 0
+            change lines to 0
+            change level to 0
+            change alive to 1
+            spawn()
+        end
+    end
+
+    clear()
+    fill(ox - 3, oy - 3, cols * cell + 6, rows * cell + 6, grid)
+    let r be 0
+    for each row in board
+        let c be 0
+        for each v in row
+            if v is not 0
+                rfill(ox + c * cell + 1, oy + r * cell + 1, cell - 2, cell - 2, colors[v], 4)
+            end
+            change c to c + 1
+        end
+        change r to r + 1
+    end
+    for each pc in piece_cells(cur, px, py, rot)
+        if pc[1] is at least 0
+            rfill(ox + pc[0] * cell + 1, oy + pc[1] * cell + 1, cell - 2, cell - 2, colors[cur["color"]], 4)
+        end
+    end
+    text_big(panel, 50, "TETRIS", white)
+    text_at(panel, 108, "SCORE", dim)
+    text_big(panel, 124, text(score), white)
+    text_at(panel, 180, "LINES", dim)
+    text_big(panel, 196, text(lines), white)
+    text_at(panel, 252, "LEVEL", dim)
+    text_big(panel, 268, text(level), white)
+    text_at(panel, H - 70, "< >  move", dim)
+    text_at(panel, H - 52, "up   rotate", dim)
+    text_at(panel, H - 34, "space  drop", dim)
+    if alive is 0
+        text_big(ox + 18, oy + 230, "GAME OVER", rgb(245, 100, 110))
+        text_at(ox + 18, oy + 260, "press SPACE", dim)
+    end
+    present()
+    delay(16)
+end
