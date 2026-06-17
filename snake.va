@@ -1,0 +1,123 @@
+# Snake - written in plain Vanta, compiled native, runs in an SDL window.
+title("Vanta Snake")
+let W be screen_w()
+let H be screen_h()
+let cell be 24
+let top be 64
+let cols be W / cell
+let rows be (H - top) / cell
+
+let bg be rgb(10, 14, 26)
+let bar be rgb(16, 22, 40)
+let body be rgb(94, 220, 150)
+let head be rgb(160, 250, 195)
+let foodc be rgb(245, 120, 90)
+let white be rgb(232, 238, 250)
+let dim be rgb(170, 182, 208)
+
+to new_food()
+    give back {"x": random(cols), "y": random(rows)}
+end
+
+let snake be []
+add {"x": 5, "y": 6} to snake
+add {"x": 6, "y": 6} to snake
+add {"x": 7, "y": 6} to snake
+let dx be 1
+let dy be 0
+let food be new_food()
+let score be 0
+let alive be 1
+let tick be 0
+let gap be 7
+
+background(bg)
+gc_mark()
+
+while quit() is 0
+    frame_reset()
+    poll()
+
+    if alive is 1
+        if pressed("left") is 1 and dx is not 1
+            change dx to 0 - 1
+            change dy to 0
+        end
+        if pressed("right") is 1 and dx is not (0 - 1)
+            change dx to 1
+            change dy to 0
+        end
+        if pressed("up") is 1 and dy is not 1
+            change dx to 0
+            change dy to 0 - 1
+        end
+        if pressed("down") is 1 and dy is not (0 - 1)
+            change dx to 0
+            change dy to 1
+        end
+
+        change tick to tick + 1
+        if tick is at least gap
+            change tick to 0
+            let h be snake[length(snake) - 1]
+            let nx be h["x"] + dx
+            let ny be h["y"] + dy
+            if nx is under 0 or nx is at least cols or ny is under 0 or ny is at least rows
+                change alive to 0
+                sound(140, 220)
+            otherwise
+                let hit be 0
+                for each seg in snake
+                    if seg["x"] is nx and seg["y"] is ny
+                        change hit to 1
+                    end
+                end
+                if hit is 1
+                    change alive to 0
+                    sound(140, 220)
+                otherwise
+                    add {"x": nx, "y": ny} to snake
+                    if nx is food["x"] and ny is food["y"]
+                        change score to score + 1
+                        change food to new_food()
+                        sound(880, 55)
+                    otherwise
+                        change snake to slice(snake, 1, length(snake))
+                    end
+                end
+            end
+        end
+    otherwise
+        if pressed("space") is 1
+            change snake to []
+            add {"x": 5, "y": 6} to snake
+            add {"x": 6, "y": 6} to snake
+            add {"x": 7, "y": 6} to snake
+            change dx to 1
+            change dy to 0
+            change food to new_food()
+            change score to 0
+            change alive to 1
+        end
+    end
+
+    clear()
+    fill(0, 0, W, top, bar)
+    text_big(18, 22, "SNAKE    score " + text(score), white)
+    rfill(food["x"] * cell + 4, top + food["y"] * cell + 4, cell - 8, cell - 8, foodc, 6)
+    let i be 0
+    for each seg in snake
+        let c be body
+        if i is (length(snake) - 1)
+            change c to head
+        end
+        rfill(seg["x"] * cell + 2, top + seg["y"] * cell + 2, cell - 4, cell - 4, c, 6)
+        change i to i + 1
+    end
+    if alive is 0
+        text_huge(W / 2 - 156, H / 2 - 40, "GAME OVER", foodc)
+        text_at(W / 2 - 116, H / 2 + 24, "press SPACE to play again", dim)
+    end
+    present()
+    delay(16)
+end

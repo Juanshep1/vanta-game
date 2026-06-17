@@ -1,0 +1,111 @@
+# Pong - you (left, up/down arrows) vs the computer. Plain Vanta, native build.
+title("Vanta Pong")
+let W be screen_w()
+let H be screen_h()
+let pw be 16
+let ph be 104
+let lx be 40
+let rx be W - 40 - pw
+let ly be H / 2 - ph / 2
+let ry be H / 2 - ph / 2
+let bx be W / 2
+let by be H / 2
+let vx be 6
+let vy be 4
+let ls be 0
+let rs be 0
+let psp be 9
+
+let bg be rgb(8, 12, 24)
+let netc be rgb(40, 50, 80)
+let lc be rgb(94, 200, 255)
+let rc be rgb(245, 180, 90)
+let ballc be rgb(232, 238, 250)
+let dim be rgb(120, 140, 180)
+
+background(bg)
+gc_mark()
+
+while quit() is 0
+    frame_reset()
+    poll()
+
+    if held("up") is 1
+        change ly to ly - psp
+    end
+    if held("down") is 1
+        change ly to ly + psp
+    end
+    if ly is under 0
+        change ly to 0
+    end
+    if ly is over (H - ph)
+        change ly to H - ph
+    end
+
+    let target be by - ph / 2
+    if ry is under (target - 6)
+        change ry to ry + 7
+    otherwise if ry is over (target + 6)
+        change ry to ry - 7
+    end
+    if ry is under 0
+        change ry to 0
+    end
+    if ry is over (H - ph)
+        change ry to H - ph
+    end
+
+    change bx to bx + vx
+    change by to by + vy
+    if by is under 10
+        change vy to 0 - vy
+        change by to 10
+        sound(330, 35)
+    end
+    if by is over (H - 10)
+        change vy to 0 - vy
+        change by to H - 10
+        sound(330, 35)
+    end
+
+    if bx is at most (lx + pw + 6) and bx is at least lx and by is at least ly and by is at most (ly + ph)
+        change vx to 0 - vx
+        change bx to lx + pw + 6
+        sound(660, 50)
+    end
+    if bx is at least (rx - 6) and bx is at most (rx + pw) and by is at least ry and by is at most (ry + ph)
+        change vx to 0 - vx
+        change bx to rx - 6
+        sound(660, 50)
+    end
+
+    if bx is under 0
+        change rs to rs + 1
+        sound(170, 220)
+        change bx to W / 2
+        change by to H / 2
+        change vx to 6
+    end
+    if bx is over W
+        change ls to ls + 1
+        sound(170, 220)
+        change bx to W / 2
+        change by to H / 2
+        change vx to 0 - 6
+    end
+
+    clear()
+    let ny be 6
+    while ny is under H
+        fill(W / 2 - 2, ny, 4, 16, netc)
+        change ny to ny + 28
+    end
+    rfill(lx, ly, pw, ph, lc, 6)
+    rfill(rx, ry, pw, ph, rc, 6)
+    rfill(bx - 8, by - 8, 16, 16, ballc, 8)
+    text_huge(W / 2 - 120, 22, text(ls) + "    " + text(rs), rgb(200, 210, 235))
+    text_at(40, H - 26, "you = up / down arrows  -  beat the computer", dim)
+    present()
+    delay(16)
+end
