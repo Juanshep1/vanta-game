@@ -1,0 +1,330 @@
+# Vantagotchi - a virtual pet, written in plain Vanta, compiled native (vc + SDL).
+# Look after Vee: keep Food, Fun and Energy up. It gets hungry, bored and tired
+# in real time, changes mood, naps, and even needs cleaning up after.
+#   F = feed    P = play    S = sleep / wake    C = clean
+title("Vantagotchi")
+window(560, 540)
+let W be screen_w()
+let H be screen_h()
+
+let ink be rgb(232, 238, 250)
+let soft be rgb(150, 160, 190)
+let panel be rgb(40, 46, 66)
+let edge be rgb(72, 82, 110)
+
+# --- pet state ---
+let food be 80
+let fun be 70
+let energy be 90
+let sleeping be 0
+let poop be 0
+let day be 1
+let fed be 0
+
+# timers / animation
+let c1 be 0
+let c2 be 0
+let c3 be 0
+let cd be 0
+let blink be 0
+let react be 0
+let frame be 0
+
+to clamp(v)
+    if v is over 100
+        give back 100
+    end
+    if v is under 0
+        give back 0
+    end
+    give back v
+end
+
+to mood_of()
+    if sleeping is 1
+        give back 3
+    end
+    if food is under 12 and fun is under 18
+        give back 4
+    end
+    if food is under 30
+        give back 1
+    end
+    if fun is under 30
+        give back 2
+    end
+    if energy is under 18
+        give back 3
+    end
+    give back 0
+end
+
+to draw_heart(x, y, c)
+    circle(x - 4, y, 5, c)
+    circle(x + 4, y, 5, c)
+    fill(x - 8, y + 1, 17, 6, c)
+    fill(x - 5, y + 6, 11, 4, c)
+    fill(x - 2, y + 10, 5, 3, c)
+end
+
+to draw_bar(x, y, w, lbl, val, col)
+    text_at(x, y - 15, lbl, soft)
+    fill(x, y, w, 16, panel)
+    let fw be w * val / 100
+    if fw is over 0
+        rfill(x, y, fw, 16, col, 4)
+    end
+    rect(x, y, w, 16, edge)
+end
+
+to draw_pet(cx, cy, mood, bl)
+    let body be rgb(122, 212, 134)
+    let dark be rgb(68, 150, 92)
+    let white be rgb(250, 252, 255)
+    let black be rgb(30, 34, 46)
+    let pink be rgb(246, 150, 172)
+    let red be rgb(228, 88, 96)
+    # feet
+    circle(cx - 24, cy + 48, 13, dark)
+    circle(cx + 24, cy + 48, 13, dark)
+    circle(cx - 24, cy + 46, 11, body)
+    circle(cx + 24, cy + 46, 11, body)
+    # body
+    circle(cx, cy, 60, dark)
+    circle(cx, cy, 56, body)
+    circle(cx - 18, cy - 20, 12, rgb(150, 230, 160))
+    # happy cheeks
+    if mood is 0
+        circle(cx - 36, cy + 12, 7, pink)
+        circle(cx + 36, cy + 12, 7, pink)
+    end
+    # eyes
+    let ex be 23
+    let ey be cy - 8
+    if bl is 1 or mood is 3
+        fill(cx - ex - 8, ey, 16, 3, black)
+        fill(cx + ex - 8, ey, 16, 3, black)
+    otherwise
+        circle(cx - ex, ey, 11, white)
+        circle(cx + ex, ey, 11, white)
+        let pd be 0
+        if mood is 2
+            change pd to 5
+        end
+        circle(cx - ex, ey + pd, 5, black)
+        circle(cx + ex, ey + pd, 5, black)
+        circle(cx - ex - 2, ey + pd - 2, 2, white)
+        circle(cx + ex - 2, ey + pd - 2, 2, white)
+    end
+    # mouth by mood
+    let my be cy + 24
+    if mood is 0
+        fill(cx - 12, my, 24, 4, dark)
+        fill(cx - 15, my - 5, 4, 7, dark)
+        fill(cx + 11, my - 5, 4, 7, dark)
+    end
+    if mood is 1
+        circle(cx, my + 2, 9, rgb(120, 44, 52))
+        circle(cx, my + 5, 5, red)
+    end
+    if mood is 2
+        fill(cx - 12, my + 5, 24, 4, dark)
+        fill(cx - 15, my + 3, 4, 7, dark)
+        fill(cx + 11, my + 3, 4, 7, dark)
+    end
+    if mood is 3
+        fill(cx - 7, my, 14, 3, dark)
+    end
+    if mood is 4
+        fill(cx - 13, my, 7, 3, dark)
+        fill(cx, my + 3, 7, 3, dark)
+        fill(cx + 11, my, 4, 3, dark)
+        circle(cx + 40, cy - 26, 5, rgb(120, 200, 240))
+    end
+end
+
+background(rgb(24, 26, 44))
+
+while quit() is 0
+    poll()
+    change frame to frame + 1
+
+    # ---- input ----
+    if pressed("f") is 1 and sleeping is 0
+        change food to clamp(food + 26)
+        change fun to clamp(fun + 4)
+        change fed to fed + 1
+        change react to 36
+        sound(680, 60)
+        if fed is at least 3 and poop is 0
+            change poop to 1
+            change fed to 0
+        end
+    end
+    if pressed("p") is 1 and sleeping is 0 and energy is over 8
+        change fun to clamp(fun + 24)
+        change energy to clamp(energy - 12)
+        change food to clamp(food - 6)
+        change react to 36
+        sound(840, 70)
+    end
+    if pressed("s") is 1
+        if sleeping is 1
+            change sleeping to 0
+        otherwise
+            change sleeping to 1
+        end
+        sound(360, 90)
+    end
+    if pressed("c") is 1 and poop is 1
+        change poop to 0
+        change fun to clamp(fun + 6)
+        sound(520, 50)
+    end
+
+    # ---- decay over time ----
+    change c1 to c1 + 1
+    let hgap be 50
+    if sleeping is 1
+        change hgap to 90
+    end
+    if c1 is at least hgap
+        change c1 to 0
+        change food to clamp(food - 2)
+    end
+
+    change c2 to c2 + 1
+    let fgap be 60
+    if poop is 1
+        change fgap to 38
+    end
+    if sleeping is 1
+        change fgap to 130
+    end
+    if c2 is at least fgap
+        change c2 to 0
+        change fun to clamp(fun - 2)
+    end
+
+    change c3 to c3 + 1
+    if sleeping is 1
+        if c3 is at least 22
+            change c3 to 0
+            change energy to clamp(energy + 4)
+            if energy is at least 100
+                change sleeping to 0
+            end
+        end
+    otherwise
+        if c3 is at least 55
+            change c3 to 0
+            change energy to clamp(energy - 2)
+        end
+    end
+
+    change cd to cd + 1
+    if cd is at least 1500
+        change cd to 0
+        change day to day + 1
+    end
+
+    # blink + react timers
+    if blink is over 0
+        change blink to blink - 1
+    otherwise
+        if random(110) is 0
+            change blink to 6
+        end
+    end
+    if react is over 0
+        change react to react - 1
+    end
+
+    let mood be mood_of()
+
+    # ---- draw ----
+    clear()
+    fill(0, H - 150, W, 150, rgb(34, 30, 50))
+    fill(0, H - 150, W, 4, rgb(54, 48, 78))
+
+    text_huge(36, 22, "VEE", ink)
+    text_at(W - 150, 24, "DAY " + text(day), soft)
+    let label be "happy"
+    if mood is 1
+        change label to "hungry!"
+    end
+    if mood is 2
+        change label to "lonely"
+    end
+    if mood is 3
+        change label to "zzz..."
+    end
+    if mood is 4
+        change label to "feels sick"
+    end
+    text_at(120, 30, label, rgb(160, 220, 180))
+
+    let fc be rgb(245, 170, 70)
+    if food is under 25
+        change fc to rgb(232, 90, 96)
+    end
+    let pc be rgb(244, 130, 170)
+    let ec be rgb(96, 180, 250)
+    draw_bar(36, 86, 300, "FOOD", food, fc)
+    draw_bar(36, 130, 300, "FUN", fun, pc)
+    draw_bar(36, 174, 300, "ENERGY", energy, ec)
+
+    # platform
+    rfill(W / 2 - 120, 392, 240, 22, rgb(52, 46, 76), 10)
+
+    # pet bob
+    let bob be 0
+    let b be frame
+    while b is at least 60
+        change b to b - 60
+    end
+    if b is over 30
+        change b to 60 - b
+    end
+    change bob to b / 6
+    if sleeping is 1
+        change bob to 0
+    end
+    draw_pet(W / 2, 330 - bob, mood, blink)
+
+    # zzz when sleeping
+    if sleeping is 1
+        let zy be frame
+        while zy is at least 40
+            change zy to zy - 40
+        end
+        text_at(W / 2 + 60, 270 - zy, "z", soft)
+        text_big(W / 2 + 74, 250 - zy, "Z", soft)
+    end
+
+    # floating hearts when cared for
+    if react is over 0
+        draw_heart(W / 2, 250 - (36 - react) * 2, rgb(246, 120, 150))
+    end
+
+    # poop
+    if poop is 1
+        circle(W / 2 + 110, 404, 9, rgb(120, 88, 60))
+        circle(W / 2 + 104, 410, 7, rgb(98, 70, 48))
+        circle(W / 2 + 116, 410, 7, rgb(98, 70, 48))
+        text_at(W / 2 + 88, 422, "press C", rgb(150, 130, 110))
+    end
+
+    # care warning
+    if mood is 4
+        text_at(W / 2 - 70, 444, "Vee needs you!", rgb(245, 120, 120))
+    end
+
+    # controls
+    text_at(36, H - 56, "F feed     P play", soft)
+    text_at(36, H - 36, "S sleep    C clean", soft)
+    text_at(W - 220, H - 36, "a Vantagotchi, in plain Vanta", rgb(110, 120, 150))
+
+    present()
+    delay(16)
+end
