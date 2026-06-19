@@ -1,0 +1,122 @@
+# A tiny immediate-mode GUI toolkit, written in Vanta on the native game engine.
+# Widgets: button, checkbox, counter, text field. Demo: a settings panel.
+title("Vanta GUI")
+window(560, 460)
+
+# ---- per-frame input state (set once each frame in the loop) ----
+let mx be 0
+let my be 0
+let click be 0
+let mdown_prev be 0
+
+to inside(x, y, w, h)
+    if mx is at least x and mx is under x + w and my is at least y and my is under y + h
+        give back 1
+    end
+    give back 0
+end
+
+to button(label, x, y, w, h)
+    let hot be inside(x, y, w, h)
+    let bg be rgb(58, 64, 92)
+    if hot is 1
+        change bg to rgb(92, 104, 150)
+    end
+    rfill(x, y, w, h, bg, 9)
+    text_at(x + 14, y + h / 2 - 4, label, rgb(236, 240, 250))
+    if hot is 1 and click is 1
+        give back 1
+    end
+    give back 0
+end
+
+# checkbox returns the (possibly toggled) state
+to checkbox(label, x, y, state)
+    let box be rgb(40, 46, 70)
+    rfill(x, y, 26, 26, box, 6)
+    if state is 1
+        rfill(x + 6, y + 6, 14, 14, rgb(124, 240, 200), 4)
+    end
+    text_at(x + 38, y + 8, label, rgb(214, 222, 240))
+    if inside(x, y, 220, 26) is 1 and click is 1
+        if state is 1
+            give back 0
+        end
+        give back 1
+    end
+    give back state
+end
+
+# a -/+ counter; returns the new value
+to counter(label, x, y, value)
+    text_at(x, y + 8, label, rgb(214, 222, 240))
+    let v be value
+    if button("-", x + 150, y, 38, 34) is 1
+        change v to v - 1
+    end
+    text_big(x + 200, y + 4, text(v), rgb(255, 212, 121))
+    if button("+", x + 250, y, 38, 34) is 1
+        change v to v + 1
+    end
+    give back v
+end
+
+# state
+let dark be 1
+let snd be 0
+let volume be 5
+let name be ""
+let saved be 0
+
+background(rgb(14, 16, 30))
+
+while quit() is 0
+    poll()
+    change mx to mouse_x()
+    change my to mouse_y()
+    let md be mouse_down()
+    change click to 0
+    if md is 1 and mdown_prev is 0
+        change click to 1
+    end
+    change mdown_prev to md
+
+    # text field input (always focused)
+    let k be key()
+    if k is not ""
+        if k is "\b"
+            if length(name) is over 0
+                change name to slice(name, 0, length(name) - 1)
+            end
+        otherwise
+            change name to name + k
+        end
+        change saved to 0
+    end
+
+    clear()
+    let bg be rgb(20, 23, 42)
+    if dark is 0
+        change bg to rgb(232, 235, 245)
+    end
+    rfill(40, 40, 480, 380, bg, 18)
+    text_big(64, 64, "Settings", rgb(124, 240, 200))
+
+    change dark to checkbox("Dark mode", 64, 130, dark)
+    change snd to checkbox("Sound", 64, 172, snd)
+    change volume to counter("Volume", 64, 220, volume)
+
+    text_at(64, 284, "Name:", rgb(214, 222, 240))
+    rfill(140, 278, 320, 30, rgb(40, 46, 70), 6)
+    text_at(150, 286, name + "_", rgb(245, 245, 255))
+
+    if button("Save", 64, 340, 110, 40) is 1
+        change saved to 1
+    end
+    if saved is 1
+        text_at(190, 352, "saved!", rgb(124, 240, 200))
+    end
+
+    present()
+    delay(16)
+end

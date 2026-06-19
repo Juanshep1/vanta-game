@@ -18,6 +18,7 @@ that Vanta is a real, self-hosting, native language.
 | **`pong`** | Pong vs the computer. Up/Down arrows. |
 | **`bounce`** | a Breakout-style paddle bouncer. ←/→ arrows. |
 | **`sprites`** | a demo of pixel-art sprites defined as plain Vanta strings. |
+| **`gui`** | a tiny **immediate-mode GUI toolkit** in Vanta — buttons, checkboxes, a counter, and a text field (a working Settings panel). Shows the engine can do apps, not just games. |
 | **`vantagotchi`** | a virtual pet — feed/play/sleep/clean as Food, Fun and Energy decay in real time; Vee changes mood, naps and needs cleaning up after. `F` feed, `P` play, `S` sleep, `C` clean. |
 
 Build any of them with `./build.sh <name>` and run `./<name>`.
